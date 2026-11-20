@@ -1,19 +1,11 @@
-# NATTORDREN 2027
+# NATTORDREN – nettside og årsarkiv
 
-Statisk GitHub Pages-nettside for nattordren.no.
+Publiseres med GitHub Pages fra `main`. Domenet `nattordren.no` beholdes via CNAME.
 
-## Sider
-- `index.html` – forside
-- `historien.html` – historien og legenden
-- `mysteriet.html` – årets oppdrag
-- `arkiv.html` – årsarkiv fra 2018
-- `arkiv/2018/` til `arkiv/2027/` – egne arkivsider for hvert år
-- `nfc/post-1/`, `nfc/post-2/`, `nfc/post-3/` – NFC-landingssider
-- `kort/` – demonstrasjon av deltakerkort
-- `assets/` – felles CSS og JavaScript
+## Administrasjon
+Åpne https://app.pagescms.org/richard141271/halloween2027/main eller gå til `/admin/`.
 
-## Arkivet
-Hvert år har sin egen side med plass til historie, bilder/videoer, høydepunkter og årets spor. Innholdet for tidligere år er bevisst ikke fylt inn med oppdiktede detaljer.
+Pages CMS-oppsettet ligger i `.pages.yml`. Årsarkivet redigeres i samlingen **Årsarkiv**. Hvert år ligger som Markdown-fil i `content/years/`. Bilder som lastes opp i rich-text-feltet lagres under `media/`.
 
 ## Viktig
-Dette er en statisk førsteversjon. Den lagrer ikke deltakerdata. Database og personlige profiler må bygges senere.
+Etter opplasting må hele ZIP-innholdet legges i roten av GitHub-repoet, og eksisterende filer med samme navn erstattes. Ikke last opp ZIP-filen som én fil.
