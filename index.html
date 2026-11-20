@@ -1,0 +1,187 @@
+
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080b12">
+  <meta name="description" content="NATTORDREN 2027 – Den hvite dame. Hemmeligheten ved Klokketårnet.">
+  <title>NATTORDREN 2027 – Den hvite dame</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #080b12;
+      color: #eee9df;
+      font-family: Georgia, serif;
+    }
+    header {
+      padding: 25px 7%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #ffffff20;
+      font-family: Arial, sans-serif;
+    }
+    .logo {
+      letter-spacing: 5px;
+      font-weight: bold;
+      color: #d5b878;
+    }
+    nav a {
+      color: #c8c3b8;
+      text-decoration: none;
+      margin-left: 22px;
+      font-size: 13px;
+    }
+    .hero {
+      min-height: 82vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 70px 20px;
+      background:
+        linear-gradient(#080b1280, #080b12),
+        url("https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=2000&q=85")
+        center/cover;
+    }
+    .hero-content { max-width: 850px; }
+    .eyebrow {
+      color: #d5b878;
+      letter-spacing: 6px;
+      font: 12px Arial, sans-serif;
+    }
+    h1 {
+      font-size: clamp(48px, 9vw, 100px);
+      font-weight: normal;
+      margin: 25px 0 10px;
+      letter-spacing: 5px;
+    }
+    h2 {
+      color: #d5b878;
+      font-weight: normal;
+      font-size: clamp(20px, 4vw, 30px);
+    }
+    .intro {
+      max-width: 590px;
+      margin: 30px auto;
+      color: #c4c0b8;
+      line-height: 1.8;
+      font-size: 17px;
+    }
+    .button {
+      display: inline-block;
+      margin-top: 15px;
+      padding: 15px 30px;
+      border: 1px solid #b99b60;
+      color: #e5cf9d;
+      text-decoration: none;
+      letter-spacing: 2px;
+      font: 12px Arial, sans-serif;
+    }
+    .button:hover {
+      background: #b99b60;
+      color: #080b12;
+    }
+    section {
+      max-width: 950px;
+      margin: auto;
+      padding: 80px 25px;
+      text-align: center;
+    }
+    section h2 { font-size: 32px; }
+    section p {
+      color: #bcb8b0;
+      line-height: 1.9;
+      max-width: 700px;
+      margin: 20px auto;
+    }
+    footer {
+      border-top: 1px solid #ffffff20;
+      text-align: center;
+      padding: 30px;
+      color: #777;
+      font: 11px Arial, sans-serif;
+      letter-spacing: 2px;
+    }
+    @media(max-width:600px) {
+      nav a { margin-left: 8px; font-size: 11px; }
+      header { padding: 20px 15px; }
+      .logo { letter-spacing: 2px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">NATTORDREN</div>
+    <nav>
+      <a href="#mysteriet">Mysteriet</a>
+      <a href="#historien">Historien</a>
+      <a href="#arkivet">Arkivet</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div class="hero-content">
+        <div class="eyebrow">FREDRIKSTEN FESTNING · HALDEN</div>
+        <h1>NATTORDREN</h1>
+        <h2>2027 – Den hvite dame</h2>
+        <p class="intro">
+          En gammel legende. Et forsvunnet menneske.
+          Et pistolskudd i natten.
+          Og en hemmelighet som aldri har blitt oppklart.
+        </p>
+        <a class="button" href="#mysteriet">GÅ INN I MYSTERIET</a>
+      </div>
+    </div>
+
+    <section id="mysteriet">
+      <div class="eyebrow">ÅRETS MYSTERIUM</div>
+      <h2>Hemmeligheten ved Klokketårnet</h2>
+      <p>
+        Omkring 1820 skjedde det noe uforklarlig
+        på Fredriksten festning. En soldat kom
+        ned fra vakten, skremt og ute av stand
+        til å fortelle hva han hadde sett.
+        Senere forsvant en løytnant sporløst.
+      </p>
+      <p>
+        Nå er det deres tur til å undersøke
+        mysteriet. Men vær forsiktig.
+        Ikke alle hemmeligheter bør vekkes til live.
+      </p>
+    </section>
+
+    <section id="historien">
+      <div class="eyebrow">GAMLE LEGENDER</div>
+      <h2>Den hvite dame</h2>
+      <p>
+        Gjennom generasjoner har det blitt fortalt
+        historier om en kvinne i hvitt som viser
+        seg på festningen. Noen hevder å ha sett
+        henne ved trappene opp mot Klokketårnet.
+      </p>
+      <p>
+        Hvem var hun? Og hva skjedde egentlig
+        den natten løytnanten forsvant?
+      </p>
+    </section>
+
+    <section id="arkivet">
+      <div class="eyebrow">HISTORIEN FORTSETTER</div>
+      <h2>NATTORDRENS ARKIV</h2>
+      <p>
+        Hvert år venter et nytt mysterium.
+        Gamle spor kan føre til nye hemmeligheter.
+        Dette er begynnelsen på noe større.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    NATTORDREN · HALDEN · 2027
+  </footer>
+</body>
+</html>
