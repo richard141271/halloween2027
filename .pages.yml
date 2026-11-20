@@ -1,0 +1,68 @@
+
+media:
+  input: media
+  output: /media
+  rename: safe
+  categories: [image, video, document]
+
+content:
+  - name: years
+    label: Årsarkiv
+    type: collection
+    path: content/years
+    filename: "{year}.md"
+    format: yaml-frontmatter
+    view:
+      primary: title
+      fields: [year, title, subtitle]
+      sort: year
+      default:
+        sort: year
+        order: desc
+    fields:
+      - name: year
+        label: Årstall
+        type: number
+        required: true
+      - name: title
+        label: Overskrift
+        type: string
+        required: true
+      - name: subtitle
+        label: Undertittel
+        type: string
+      - name: summary
+        label: Kort introduksjon
+        type: text
+      - name: body
+        label: Årets historie og minner
+        type: rich-text
+      - name: highlights
+        label: Høydepunkter
+        type: text
+        description: Skriv ett høydepunkt per linje.
+
+  - name: site
+    label: Nettsideinformasjon
+    type: file
+    path: content/site.yml
+    format: yaml
+    fields:
+      - name: title
+        label: Nettsidetittel
+        type: string
+      - name: introduction
+        label: Introduksjon
+        type: text
+      - name: contact
+        label: Kontaktinformasjon
+        type: string
+
+settings:
+  commit:
+    identity: app
+    templates:
+      create: "NATTORDREN: opprett {path}"
+      update: "NATTORDREN: oppdater {path}"
+      delete: "NATTORDREN: slett {path}"
+      rename: "NATTORDREN: endre navn {oldPath} -> {newPath}"
