@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090b10"><title>Bildeopplaster | NATTORDREN</title>
+<link rel="stylesheet" href="/assets/style.css">
+<style>
+.uploader{max-width:900px;margin:2rem auto;padding:1.25rem;background:#11151d;border:1px solid #343b47;border-radius:14px;color:#eee8d8}
+.uploader label{display:block;margin:.8rem 0 .35rem}.uploader input,.uploader select{width:100%;padding:.8rem;border:1px solid #596273;border-radius:8px;background:#090b10;color:#fff}
+.uploader button{padding:.75rem 1rem;border:1px solid #c9a85b;background:#171717;color:#f0d99a;border-radius:8px;cursor:pointer;margin:.5rem .4rem .5rem 0}.uploader button:disabled{opacity:.45;cursor:not-allowed}
+.muted{color:#b9b3a6}.noticebox{padding:1rem;background:#191919;border-left:3px solid #c9a85b;margin:1rem 0}.progress{height:10px;background:#303640;border-radius:20px;overflow:hidden}.progress>div{height:100%;width:0;background:#c9a85b;transition:width .2s}.queue{margin-top:1rem;max-height:360px;overflow:auto}.item{display:grid;grid-template-columns:1fr auto;gap:.6rem;padding:.65rem;border-bottom:1px solid #343b47}.ok{color:#8ed6a4}.bad{color:#ff9292}.small{font-size:.9rem}.tokenrow{display:flex;gap:.5rem;align-items:center}.tokenrow input{flex:1}.pathlist{width:100%;min-height:120px;margin-top:.5rem;background:#090b10;color:#eee;padding:.8rem;border:1px solid #596273;border-radius:8px}
+</style>
+</head>
+<body>
+<header class="site-header"><a class="brand" href="/">NATTORDREN<small>HALDEN · FREDRIKSTEN</small></a><nav><a href="/admin/">Administrasjon</a><a href="/arkiv.html">Arkivet</a></nav></header>
+<main class="section wrap">
+<section class="page-hero"><div class="eyebrow">Administrasjon</div><h1>Bildeopplaster</h1><p class="lead">Legg mange bilder i kø. De lastes opp ett og ett, og legges automatisk til valgt år.</p></section>
+<div class="uploader">
+<div class="noticebox"><strong>Engangsoppsett:</strong> Opplasteren trenger en GitHub-nøkkel med tilgang til innholdet i NATTORDREN-repositoriet. Nøkkelen brukes bare i denne nettleserøkten og lagres ikke på nettsiden.</div>
+<label for="token">GitHub-nøkkel (fine-grained personal access token)</label><input id="token" type="password" autocomplete="off" placeholder="Lim inn GitHub-nøkkelen her">
+<p class="small muted">Opprett nøkkelen på GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens. Velg bare repositoriet <b>halloween2027</b> og gi Contents: Read and write. Ikke del nøkkelen med noen.</p>
+<label for="year">Hvilket år tilhører bildene?</label><select id="year"></select>
+<label for="files">Velg bilder (du kan velge mange samtidig)</label><input id="files" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+<p class="small muted">Bildene legges i media/years/ÅR/. Maks 20 MB per bilde. Velg bilder fra ett år om gangen.</p>
+<button id="start">Start opplasting</button><button id="clear" type="button">Tøm kø</button>
+<div class="progress"><div id="bar"></div></div><p id="status" aria-live="polite">Klar til å legge bilder i kø.</p>
+<div id="queue" class="queue"></div>
+<div id="result" hidden><h3>Ferdig – bildeadressene</h3><p class="small muted">Disse bildene er lastet opp og lagt til i årssidens galleri.</p><textarea id="paths" class="pathlist" readonly></textarea><button id="copy" type="button">Kopier bildeadresser</button></div>
+</div>
+</main>
+<script>
+(() => {
+'use strict';
+const owner='richard141271', repo='halloween2027', branch='main';
+const $=id=>document.getElementById(id);
+for(let y=2018;y<=2027;y++){const o=document.createElement('option');o.value=y;o.textContent=y;if(y===2018)o.selected=true;$('year').append(o)}
+let files=[],busy=false,uploaded=[];
+const api=(path,token,options={})=>fetch(`https://api.github.com${path}`,{...options,headers:{'Accept':'application/vnd.github+json','Authorization':`Bearer ${token}`,'X-GitHub-Api-Version':'2022-11-28',...(options.headers||{})}});
+function safeName(name){return name.normalize('NFKD').replace(/[^\w.-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(-100)||'bilde';}
+function b64(buffer){let binary='';const bytes=new Uint8Array(buffer);const step=0x8000;for(let i=0;i<bytes.length;i+=step)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+step,bytes.length)));return btoa(binary)}
+function render(){ $('queue').innerHTML=files.map((f,i)=>`<div class="item"><span>${i+1}. ${f.file.name}</span><span class="${f.state==='Ferdig'?'ok':f.state==='Feilet'?'bad':'muted'}">${f.state||'Venter'}</span></div>`).join('') }
+$('files').addEventListener('change',e=>{files=[...e.target.files].map(file=>({file,state:'Venter',path:''}));uploaded=[];$('result').hidden=true;render();$('status').textContent=`${files.length} bilder lagt i kø.`});
+$('clear').onclick=()=>{if(busy)return;files=[];$('files').value='';$('queue').innerHTML='';$('bar').style.width='0%';$('status').textContent='Køen er tømt.';$('result').hidden=true};
+async function putFile(item,token,year){const bytes=await item.file.arrayBuffer();const stamp=new Date().toISOString().replace(/[-:.TZ]/g,'');const name=`${stamp}-${String(Math.random()).slice(2,8)}-${safeName(item.file.name)}`;const path=`media/years/${year}/${name}`;const url=`/repos/${owner}/${repo}/contents/${path}`;let last;
+for(let attempt=1;attempt<=4;attempt++){const response=await api(url,token,{method:'PUT',body:JSON.stringify({message:`NATTORDREN: last opp bilde ${year}/${name}`,content:b64(bytes),branch})});if(response.ok){item.path='/'+path;return item.path}const detail=await response.json().catch(()=>({message:'Ukjent GitHub-feil'}));last=detail.message||`HTTP ${response.status}`;if(response.status===409||response.status===422||response.status>=500){await new Promise(r=>setTimeout(r,1000*attempt));continue}throw new Error(last)}throw new Error(last||'Opplastingen mislyktes etter flere forsøk')}
+async function addToYear(paths,token,year){const p=`/repos/${owner}/${repo}/contents/content/years/${year}.md?ref=${branch}`;let get=await api(p,token);if(!get.ok)throw new Error('Bildene er lastet opp, men kunne ikke hente årssiden for å legge dem inn.');const file=await get.json();const source=decodeURIComponent(escape(atob(file.content.replace(/\n/g,''))));const lines=source.split(/\r?\n/);if(lines[0]?.trim()!=='---')throw new Error('Årsfilen har et uventet format. Bildene er lastet opp, men ikke lagt inn i galleriet.');const end=lines.findIndex((line,i)=>i>0&&line.trim()==='---');if(end<0)throw new Error('Fant ikke avslutningen på YAML-frontmatter.');let start=-1,next=end;for(let i=1;i<end;i++){if(/^gallery:\s*$/.test(lines[i])){start=i;for(let j=i+1;j<end;j++){if(/^[A-Za-z0-9_-]+:/.test(lines[j])){next=j;break}}break}}
+if(start<0){let insert=end;for(let i=1;i<end;i++){if(/^(highlights|summary|body):/.test(lines[i])){insert=i;break}}lines.splice(insert,0,'gallery:',...paths.map(x=>`  - ${x}`))}else{lines.splice(next,0,...paths.map(x=>`  - ${x}`))}
+const content=btoa(unescape(encodeURIComponent(lines.join('\n'))));const put=await api(`/repos/${owner}/${repo}/contents/content/years/${year}.md`,token,{method:'PUT',body:JSON.stringify({message:`NATTORDREN: oppdater bildegalleri ${year}`,content,sha:file.sha,branch})});if(!put.ok){const d=await put.json().catch(()=>({}));throw new Error(`Bildene er lastet opp, men galleriet kunne ikke oppdateres: ${d.message||put.status}`)}}
+$('start').onclick=async()=>{if(busy)return;const token=$('token').value.trim(),year=$('year').value;if(!token){$('status').textContent='Lim inn GitHub-nøkkelen først.';return}if(!files.length){$('status').textContent='Velg bilder først.';return}const tooBig=files.find(x=>x.file.size>20*1024*1024);if(tooBig){$('status').textContent=`${tooBig.file.name} er større enn 20 MB. Komprimer eller velg et mindre bilde.`;return}busy=true;$('start').disabled=true;$('clear').disabled=true;let success=0;try{const check=await api(`/repos/${owner}/${repo}`,token);if(!check.ok)throw new Error('GitHub-nøkkelen virker ikke, eller mangler tilgang til halloween2027.');for(let i=0;i<files.length;i++){const item=files[i];if(item.state==='Ferdig')continue;item.state='Laster opp …';render();$('status').textContent=`Laster opp bilde ${i+1} av ${files.length}: ${item.file.name}`;try{await putFile(item,token,year);item.state='Ferdig';uploaded.push(item.path);success++}catch(err){item.state='Feilet';item.error=err.message;render();throw new Error(`${item.file.name}: ${err.message}`)}render();$('bar').style.width=`${Math.round((i+1)/files.length*100)}%`}
+if(uploaded.length){$('status').textContent='Bildene er lastet opp. Oppdaterer galleriet på årssiden …';await addToYear(uploaded,token,year);$('paths').value=uploaded.join('\n');$('result').hidden=false;$('status').textContent=`Ferdig! ${uploaded.length} bilder er lastet opp og lagt til i arkivet for ${year}.`}
+}catch(err){$('status').textContent=`Stoppet: ${err.message} Du kan starte igjen; bilder som allerede er merket Ferdig, hoppes over.`}finally{busy=false;$('start').disabled=false;$('clear').disabled=false;render()}};
+$('copy').onclick=async()=>{await navigator.clipboard.writeText($('paths').value);$('copy').textContent='Kopiert!'};
+})();
+</script>
+</body></html>
