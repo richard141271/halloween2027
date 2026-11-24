@@ -1,76 +1,132 @@
-(function(){
-  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  async function getYear(y){const r=await fetch(`/content/years/${y}.md`);if(!r.ok)throw Error('not found');return await r.text();}
-  function unquote(v){v=String(v??'').trim();if((v.startsWith('"')&&v.endsWith('"'))||(v.startsWith("'")&&v.endsWith("'")))return v.slice(1,-1);return v;}
-  function parse(raw){
-    const m=raw.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);let meta={};
-    if(!m)return {meta,body:raw};
-    const lines=m[1].split(/\r?\n/);
-    for(let i=0;i<lines.length;i++){
-      const line=lines[i];
-      const key=line.match(/^([\w-]+):\s*(.*)$/);
-      if(!key)continue;
-      const k=key[1],v=key[2].trim();
-      if(k==='gallery'){
-        meta.gallery=[];
-        if(v){
-          const inline=v.match(/^\[(.*)\]$/);
-          if(inline&&inline[1].trim())meta.gallery=inline[1].split(/,(?=(?:[^"']|"[^"]*"|'[^']*')*$)/).map(unquote).filter(Boolean);
-          else meta.gallery=[unquote(v)];
-        } else {
-          while(i+1<lines.length && /^\s+-\s+/.test(lines[i+1])) meta.gallery.push(unquote(lines[++i].replace(/^\s+-\s+/,'')));
+/* NATTORDREN – viser innhold fra Pages CMS på årssidene. */
+(() => {
+  "use strict";
+  const clean = v => String(v ?? "").trim();
+  const unquote = v => {
+    v = clean(v);
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) return v.slice(1, -1);
+    return v;
+  };
+  const escapeHTML = v => String(v ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  })[c]);
+
+  // Leser YAML-frontmatter-formatet Pages CMS lagrer.
+  function parseFrontmatter(source) {
+    const match = source.match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*(?:\r?\n|$)([\s\S]*)$/);
+    if (!match) return { data: {}, body: source };
+    const lines = match[1].replace(/\r/g, "").split("\n");
+    const data = {};
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const field = line.match(/^([A-Za-z0-9_-]+):(?:\s*(.*))?$/);
+      if (!field) continue;
+      const key = field[1], value = field[2] ?? "";
+      if (["|", "|-", "|+", ">", ">-", ">+"].includes(value.trim())) {
+        const folded = value.trim().startsWith(">");
+        const block = [];
+        while (i + 1 < lines.length && (/^\s+/.test(lines[i + 1]) || lines[i + 1].trim() === "")) {
+          const next = lines[++i];
+          block.push(next.trim() ? next.replace(/^\s{1,}/, "") : "");
         }
-        continue;
+        data[key] = (folded ? block.join(" ") : block.join("\n")).trim();
+      } else if (!value.trim()) {
+        const items = [];
+        let j = i + 1;
+        while (j < lines.length && /^\s+-\s*/.test(lines[j])) items.push(unquote(lines[j++].replace(/^\s+-\s*/, "")));
+        if (items.length) { data[key] = items; i = j - 1; }
+        else data[key] = "";
+      } else {
+        data[key] = unquote(value);
       }
-      if(v==='|'||v==='|-'||v==='|+'||v==='>'||v==='>-'||v==='>+'){
-        const block=[];
-        while(i+1<lines.length && (/^\s+/.test(lines[i+1])||lines[i+1].trim()==='')){
-          const next=lines[++i];
-          block.push(next.trim()?next.replace(/^\s{1,}/,''):'' );
-        }
-        meta[k]=(v[0]==='>'?block.join(' ').replace(/\s+/g,' ').trim():block.join('\n')).trim();
-      } else meta[k]=unquote(v);
     }
-    return {meta,body:m[2]};
+    return { data, body: match[2] || "" };
   }
-  function md(s){
-    let lines=esc(s).split(/\r?\n/),out=[],list=false;
-    for(let line of lines){
-      if(/^\s*[-*]\s+/.test(line)){if(!list){out.push('<ul>');list=true;}out.push('<li>'+line.replace(/^\s*[-*]\s+/, '')+'</li>');continue;}
-      if(list){out.push('</ul>');list=false;}
-      if(!line.trim())continue;
-      if(line.startsWith('### '))out.push('<h3>'+line.slice(4)+'</h3>');
-      else if(line.startsWith('## '))out.push('<h2>'+line.slice(3)+'</h2>');
-      else if(line.startsWith('# '))out.push('<h2>'+line.slice(2)+'</h2>');
-      else out.push('<p>'+line+'</p>');
+
+  function markdownToHTML(source) {
+    const lines = clean(source).split(/\r?\n/);
+    const out = [];
+    let list = [];
+    const flush = () => { if (list.length) { out.push("<ul>" + list.map(x => `<li>${escapeHTML(x)}</li>`).join("") + "</ul>"); list = []; } };
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) { flush(); continue; }
+      if (/^[-*]\s+/.test(line)) { list.push(line.replace(/^[-*]\s+/, "")); continue; }
+      flush();
+      if (line.startsWith("### ")) out.push(`<h3>${escapeHTML(line.slice(4))}</h3>`);
+      else if (line.startsWith("## ")) out.push(`<h2>${escapeHTML(line.slice(3))}</h2>`);
+      else if (line.startsWith("# ")) out.push(`<h2>${escapeHTML(line.slice(2))}</h2>`);
+      else out.push(`<p>${escapeHTML(line)}</p>`);
     }
-    if(list)out.push('</ul>');
-    return out.join('\n');
+    flush();
+    return out.join("\n");
   }
-  const archive=document.querySelector('[data-archive-list]');
-  if(archive){Promise.all(Array.from({length:10},(_,i)=>2018+i).map(async y=>{try{let p=parse(await getYear(y));return {y,m:p.meta};}catch(e){return {y,m:{year:y,title:'NATTORDREN '+y,subtitle:'Tilbakeblikk',summary:'Arkivinnhold kommer.'}};}})).then(items=>{archive.innerHTML=items.reverse().map(({y,m})=>`<a class="card archive-card" href="/arkiv/${y}/"><div class="number">${y===2018?'FØRSTE ÅR':y===2027?'ÅRETS MYSTERIUM':'TILBAKEBLIKK'}</div><h3>${esc(m.title||y)}</h3><p>${esc(m.summary||m.subtitle||'')}</p><span class="archive-link">Åpne ${y} →</span></a>`).join('');});}
-  const yearNode=document.querySelector('[data-archive-year]');
-  if(yearNode){
-    const y=yearNode.getAttribute('data-archive-year');
-    getYear(y).then(raw=>{
-      const p=parse(raw),m=p.meta;
-      const title=document.querySelector('[data-year-title]'),sub=document.querySelector('[data-year-subtitle]'),body=document.querySelector('[data-year-body]'),hi=document.querySelector('[data-year-highlights]');
-      if(title)title.textContent=m.title||y;
-      if(sub)sub.textContent=m.subtitle||'';
-      if(body)body.innerHTML=md(p.body);
-      if(hi){
-        const points=String(m.highlights||'').split(/\r?\n/).map(x=>x.trim().replace(/^[-*]\s*/, '')).filter(Boolean);
-        hi.innerHTML=points.map(x=>'<li>'+esc(x)+'</li>').join('');
-        const heading=hi.previousElementSibling;
-        if(heading&&heading.tagName==='H3')heading.hidden=points.length===0;
-        hi.hidden=points.length===0;
-      }
-      const gallery=Array.isArray(m.gallery)?m.gallery:[];
-      const gallerySection=document.querySelector('[data-gallery-section]'),galleryNode=document.querySelector('[data-year-gallery]');
-      if(gallerySection&&galleryNode&&gallery.length){
-        gallerySection.hidden=false;
-        galleryNode.innerHTML=gallery.map((src,i)=>{const safe=esc(src);return `<a class="year-gallery-item" href="${safe}" target="_blank" rel="noopener"><img src="${safe}" alt="NATTORDREN ${esc(y)} – bilde ${i+1}" loading="lazy"></a>`;}).join('');
-      }
-    }).catch(()=>{const b=document.querySelector('[data-year-body]');if(b)b.textContent='Innholdet for dette året er ikke publisert ennå.';});
+
+  function listValues(value) {
+    if (Array.isArray(value)) return value.map(clean).filter(Boolean);
+    const v = clean(value);
+    if (!v) return [];
+    if (v.startsWith("[") && v.endsWith("]")) return v.slice(1, -1).split(",").map(unquote).filter(Boolean);
+    return v.split(/\r?\n/).map(x => x.replace(/^\s*[-*]\s*/, "").trim()).filter(Boolean);
   }
+
+  function safeImagePath(value) {
+    const path = clean(value);
+    if (!path || /^(javascript|data):/i.test(path)) return "";
+    if (/^https?:\/\//i.test(path)) return path;
+    return path.startsWith("/") ? path : "/" + path.replace(/^\.?\//, "");
+  }
+
+  async function init() {
+    const root = document.querySelector("[data-archive-year]");
+    if (!root) return;
+    const year = root.getAttribute("data-archive-year");
+    try {
+      const response = await fetch(`/content/years/${year}.md?v=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`CMS-innhold for ${year} ble ikke funnet (${response.status})`);
+      const { data, body } = parseFrontmatter(await response.text());
+
+      const set = (id, value) => { const el = document.getElementById(id); if (el && clean(value)) el.textContent = clean(value); };
+      set("archive-year", data.year || year);
+      set("archive-title", data.title);
+      set("archive-subtitle", data.subtitle);
+      document.title = `${clean(data.title) || year} | NATTORDREN`;
+
+      const summary = document.getElementById("archive-summary");
+      if (summary && clean(data.summary)) { summary.textContent = clean(data.summary); summary.hidden = false; }
+
+      const story = document.getElementById("archive-story");
+      const storyText = clean(data.body) || clean(body);
+      if (story && storyText) story.innerHTML = markdownToHTML(storyText);
+
+      const highlights = listValues(data.highlights);
+      const highlightSection = document.getElementById("archive-highlights-section");
+      const highlightList = document.getElementById("archive-highlights");
+      if (highlights.length && highlightList && highlightSection) {
+        highlightList.innerHTML = highlights.map(item => `<li>${escapeHTML(item)}</li>`).join("");
+        highlightSection.hidden = false;
+      }
+
+      const gallery = listValues(data.gallery);
+      const gallerySection = document.getElementById("archive-gallery-section");
+      const galleryNode = document.getElementById("archive-gallery");
+      if (gallery.length && galleryNode && gallerySection) {
+        galleryNode.innerHTML = gallery.map((item, i) => {
+          const path = safeImagePath(item);
+          if (!path) return "";
+          return `<figure class="archive-photo"><a href="${escapeHTML(path)}" target="_blank" rel="noopener"><img src="${escapeHTML(path)}" alt="NATTORDREN ${escapeHTML(year)} – bilde ${i + 1}" loading="lazy"></a></figure>`;
+        }).join("");
+        if (galleryNode.innerHTML) gallerySection.hidden = false;
+      }
+    } catch (error) {
+      console.error("[NATTORDREN CMS]", error);
+      const errorNode = document.getElementById("archive-error");
+      if (errorNode) {
+        errorNode.textContent = "Arkivinnholdet kunne ikke lastes. Prøv å oppdatere siden om litt.";
+        errorNode.hidden = false;
+      }
+    }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
+  else init();
 })();
