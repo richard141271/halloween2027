@@ -37,6 +37,19 @@ content:
       - name: body
         label: Årets historie og minner
         type: rich-text
+        
+      - name: gallery
+        label: Bilder fra dette året
+        type: image
+        description: Last opp bilder fra dette året. Du kan velge flere samtidig.
+        options:
+          path: years
+          multiple:
+            max: 100
+          unique: true
+          extensions: [jpg, jpeg, png, webp, gif]
+          rename: safe
+
       - name: highlights
         label: Høydepunkter
         type: text
