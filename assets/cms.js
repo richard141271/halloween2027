@@ -77,45 +77,7 @@
     return path.startsWith("/") ? path : "/" + path.replace(/^\.?\//, "");
   }
 
-  async function initArchiveList() {
-    const list = document.querySelector("[data-archive-list]");
-    if (!list) return;
-
-    const years = Array.from({ length: 10 }, (_, i) => 2027 - i);
-    try {
-      const entries = await Promise.all(years.map(async year => {
-        const response = await fetch(`/content/years/${year}.md`, { cache: "no-store" });
-        if (!response.ok) return null;
-        const parsed = parseFrontmatter(await response.text());
-        const data = parsed.data;
-        return {
-          year: Number(data.year) || year,
-          title: clean(data.title) || `NATTORDREN ${year}`,
-          subtitle: clean(data.subtitle),
-          summary: clean(data.summary)
-        };
-      }));
-
-      const available = entries.filter(Boolean).sort((a, b) => b.year - a.year);
-      if (!available.length) throw new Error("Fant ingen år i årsarkivet.");
-
-      list.innerHTML = available.map(entry => `
-        <a class="card archive-card" href="/arkiv/${entry.year}/">
-          <div class="number">NATTORDREN · ${entry.year}</div>
-          <h3>${escapeHTML(entry.year)}</h3>
-          <strong>${escapeHTML(entry.title)}</strong>
-          ${entry.subtitle ? `<p>${escapeHTML(entry.subtitle)}</p>` : ""}
-          ${entry.summary ? `<p>${escapeHTML(entry.summary)}</p>` : ""}
-          <span class="archive-link">Åpne året →</span>
-        </a>
-      `).join("");
-    } catch (error) {
-      console.error("[NATTORDREN arkivliste]", error);
-      list.innerHTML = '<p class="notice">Årsarkivet kunne ikke lastes akkurat nå. Prøv å oppdatere siden.</p>';
-    }
-  }
-
-  async function initYearPage() {
+  async function init() {
     const root = document.querySelector("[data-archive-year]");
     if (!root) return;
     const year = root.getAttribute("data-archive-year");
@@ -152,6 +114,11 @@
         galleryNode.innerHTML = gallery.map((item, i) => {
           const path = safeImagePath(item);
           if (!path) return "";
+          const isVideo = /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(path);
+          if (isVideo) {
+            const type = /\.webm(?:[?#].*)?$/i.test(path) ? "video/webm" : (/\.mov(?:[?#].*)?$/i.test(path) ? "video/quicktime" : "video/mp4");
+            return `<figure class="archive-photo archive-video"><video controls preload="metadata" playsinline aria-label="NATTORDREN ${escapeHTML(year)} – filmklipp ${i + 1}"><source src="${escapeHTML(path)}" type="${type}"></video></figure>`;
+          }
           return `<figure class="archive-photo"><a href="${escapeHTML(path)}" target="_blank" rel="noopener"><img src="${escapeHTML(path)}" alt="NATTORDREN ${escapeHTML(year)} – bilde ${i + 1}" loading="lazy"></a></figure>`;
         }).join("");
         if (galleryNode.innerHTML) gallerySection.hidden = false;
@@ -165,10 +132,9 @@
       }
     }
   }
-  function start() {
-    initArchiveList();
-    initYearPage();
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
-  else start();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
+  else init();
 })();
+
+/* NATTORDREN video gallery support */
+document.addEventListener("DOMContentLoaded", () => { document.querySelectorAll(".archive-video video").forEach(v => { v.style.width = "100%"; v.style.height = "auto"; v.style.borderRadius = "12px"; v.style.background = "#000"; }); });
