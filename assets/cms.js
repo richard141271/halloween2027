@@ -1,10 +1,35 @@
 (function(){
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   async function getYear(y){const r=await fetch(`/content/years/${y}.md`);if(!r.ok)throw Error('not found');return await r.text();}
-  function parse(raw){const m=raw.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);let meta={};if(m){m[1].split(/\r?\n/).forEach(line=>{let x=line.match(/^([\w-]+):\s*(.*)$/);if(x)meta[x[1]]=x[2].replace(/^['"]|['"]$/g,'');});return {meta,body:m[2]};}return {meta,body:raw};}
+  function parse(raw){
+    const m=raw.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);let meta={};
+    if(!m)return {meta,body:raw};
+    const lines=m[1].split(/\r?\n/);let listKey=null;
+    for(const line of lines){
+      const key=line.match(/^([\w-]+):\s*(.*)$/);
+      if(key){
+        listKey=null;
+        const k=key[1],v=key[2].trim();
+        if(k==='gallery'){
+          if(v){try{meta.gallery=JSON.parse(v.replace(/'/g,'"'));}catch{meta.gallery=v.replace(/^\[|\]$/g,'').split(',').map(x=>x.trim().replace(/^['"]|['"]$/g,'')).filter(Boolean);}}
+          else {meta.gallery=[];listKey='gallery';}
+        } else meta[k]=v.replace(/^['"]|['"]$/g,'');
+        continue;
+      }
+      if(listKey==='gallery'){
+        const item=line.match(/^\s+-\s*(.*?)\s*$/);
+        if(item&&item[1])meta.gallery.push(item[1].replace(/^['"]|['"]$/g,''));
+        else if(line.trim())listKey=null;
+      }
+    }
+    return {meta,body:m[2]};
+  }
   function md(s){let lines=esc(s).split(/\r?\n/),out=[],list=false;for(let line of lines){if(/^\s*[-*]\s+/.test(line)){if(!list){out.push('<ul>');list=true;}out.push('<li>'+line.replace(/^\s*[-*]\s+/, '')+'</li>');continue;}if(list){out.push('</ul>');list=false;}if(!line.trim())continue;if(line.startsWith('### '))out.push('<h3>'+line.slice(4)+'</h3>');else if(line.startsWith('## '))out.push('<h2>'+line.slice(3)+'</h2>');else if(line.startsWith('# '))out.push('<h2>'+line.slice(2)+'</h2>');else out.push('<p>'+line+'</p>');}if(list)out.push('</ul>');return out.join('\n');}
   const archive=document.querySelector('[data-archive-list]');
   if(archive){Promise.all(Array.from({length:10},(_,i)=>2018+i).map(async y=>{try{let p=parse(await getYear(y));return {y,m:p.meta};}catch(e){return {y,m:{year:y,title:'NATTORDREN '+y,subtitle:'Tilbakeblikk',summary:'Arkivinnhold kommer.'}};}})).then(items=>{archive.innerHTML=items.reverse().map(({y,m})=>`<a class="card archive-card" href="/arkiv/${y}/"><div class="number">${y===2018?'FØRSTE ÅR':y===2027?'ÅRETS MYSTERIUM':'TILBAKEBLIKK'}</div><h3>${esc(m.title||y)}</h3><p>${esc(m.summary||m.subtitle||'')}</p><span class="archive-link">Åpne ${y} →</span></a>`).join('');});}
   const yearNode=document.querySelector('[data-archive-year]');
-  if(yearNode){const y=yearNode.getAttribute('data-archive-year');getYear(y).then(raw=>{const p=parse(raw),m=p.meta;const title=document.querySelector('[data-year-title]'),sub=document.querySelector('[data-year-subtitle]'),body=document.querySelector('[data-year-body]'),hi=document.querySelector('[data-year-highlights]');if(title)title.textContent=m.title||y;if(sub)sub.textContent=m.subtitle||'';if(body)body.innerHTML=md(p.body);if(hi){hi.innerHTML=(m.highlights||'').split(/\\n|\n/).filter(Boolean).map(x=>'<li>'+esc(x.replace(/^\s+/,'').replace(/^[-*]\s*/,''))+'</li>').join('');}}).catch(()=>{const b=document.querySelector('[data-year-body]');if(b)b.textContent='Innholdet for dette året er ikke publisert ennå.';});}
+  if(yearNode){const y=yearNode.getAttribute('data-archive-year');getYear(y).then(raw=>{const p=parse(raw),m=p.meta;const title=document.querySelector('[data-year-title]'),sub=document.querySelector('[data-year-subtitle]'),body=document.querySelector('[data-year-body]'),hi=document.querySelector('[data-year-highlights]');if(title)title.textContent=m.title||y;if(sub)sub.textContent=m.subtitle||'';if(body)body.innerHTML=md(p.body);if(hi){hi.innerHTML=(m.highlights||'').split(/\\n|\n/).filter(Boolean).map(x=>'<li>'+esc(x.replace(/^\s+/,'').replace(/^[-*]\s*/,''))+'</li>').join('');}
+    const gallery=Array.isArray(m.gallery)?m.gallery:[];const gallerySection=document.querySelector('[data-gallery-section]'),galleryNode=document.querySelector('[data-year-gallery]');
+    if(gallerySection&&galleryNode&&gallery.length){gallerySection.hidden=false;galleryNode.innerHTML=gallery.map((src,i)=>{const safe=esc(src);return `<a class="year-gallery-item" href="${safe}" target="_blank" rel="noopener"><img src="${safe}" alt="NATTORDREN ${esc(y)} – bilde ${i+1}" loading="lazy"></a>`;}).join('');}
+  }).catch(()=>{const b=document.querySelector('[data-year-body]');if(b)b.textContent='Innholdet for dette året er ikke publisert ennå.';});}
 })();
