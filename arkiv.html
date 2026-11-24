@@ -1,11 +1,18 @@
 <!doctype html>
-<html lang="no"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#090b10"><title>Arkivet | NATTORDREN</title>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090b10">
+<title>Arkivet | NATTORDREN</title>
 <meta name="description" content="NATTORDREN – historien vår, år for år.">
 <link rel="stylesheet" href="/assets/style.css">
-</head><body>
-<header class="site-header"><a class="brand" href="/">NATTORDREN<small>HALDEN · FREDRIKSTEN</small></a><nav><a href="/index.html">Forside</a><a href="/historien.html">Historien</a><a href="/mysteriet.html">2027-mysteriet</a><a href="/arkiv.html">Arkivet</a></nav></header>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="/">NATTORDREN<small>HALDEN · FREDRIKSTEN</small></a>
+  <nav><a href="/index.html">Forside</a><a href="/historien.html">Historien</a><a href="/mysteriet.html">2027-mysteriet</a><a href="/arkiv.html">Arkivet</a></nav>
+</header>
 <main>
 <section class="page-hero">
   <div class="eyebrow">Historien vår – år for år</div>
@@ -14,9 +21,77 @@
   <p class="lead">Hvert år har sine minner, sine mysterier og sine øyeblikk. Her samler vi reisen fra starten.</p>
 </section>
 <section class="section wrap">
-  <div class="notice"><strong>NATTORDREN begynte i 2018.</strong> Her kan du legge inn litt fra hvert år – bilder, videoer, historier, oppgaver, diplomer og minner. Arkivet skal vise hvordan tradisjonen har utviklet seg.</div>
-  <div class="grid archive-grid" data-archive-list><p>Henter årsarkivet …</p></div>
+  <div class="notice"><strong>NATTORDREN begynte i 2018.</strong> Her samler vi bilder, videoer, historier, oppgaver, diplomer og minner – år for år.</div>
+  <div class="grid" id="archive-list" aria-live="polite"><p>Henter årsarkivet …</p></div>
+  <p id="archive-load-error" class="archive-placeholder" hidden>Årsarkivet kunne ikke lastes akkurat nå. Oppdater siden om litt.</p>
 </section>
 </main>
 <footer class="site-footer">NATTORDREN · HALDEN · 2018–2027<br><br><span class="small">Et årlig mysterium. Nye spor. Gamle hemmeligheter.</span></footer>
-<script src="/assets/main.js"></script><script src="/assets/cms.js"></script></body></html>
+<script src="/assets/main.js"></script>
+<script>
+(() => {
+  "use strict";
+  const target = document.getElementById("archive-list");
+  const error = document.getElementById("archive-load-error");
+  const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  })[c]);
+  function unquote(value) {
+    value = String(value ?? "").trim();
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) return value.slice(1, -1);
+    return value;
+  }
+  function parse(source) {
+    source = String(source || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trimStart();
+    const lines = source.split("\n"), data = {};
+    if (lines[0]?.trim() !== "---") return data;
+    const end = lines.findIndex((line, i) => i > 0 && line.trim() === "---");
+    if (end < 0) return data;
+    for (let i = 1; i < end; i++) {
+      const match = lines[i].match(/^([A-Za-z0-9_-]+):(?:\s*(.*))?$/);
+      if (!match) continue;
+      const key = match[1], value = match[2] ?? "";
+      if (["|", "|-", "|+", ">", ">-", ">+"].includes(value.trim())) {
+        const block = [];
+        while (i + 1 < end && (/^\s+/.test(lines[i + 1]) || !lines[i + 1].trim())) {
+          const next = lines[++i];
+          if (next.trim()) block.push(next.replace(/^\s+/, ""));
+        }
+        data[key] = block.join(value.trim().startsWith(">") ? " " : " ");
+      } else data[key] = unquote(value);
+    }
+    return data;
+  }
+  async function loadYear(year) {
+    const response = await fetch(`/content/years/${year}.md?v=${Date.now()}`, {cache:"no-store"});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return parse(await response.text());
+  }
+  async function init() {
+    const years = Array.from({length:10}, (_, i) => 2018 + i);
+    const results = await Promise.all(years.map(async year => {
+      try { return {year, data:await loadYear(year)}; }
+      catch (e) { console.warn(`[NATTORDREN arkiv] ${year}`, e); return {year, data:null}; }
+    }));
+    target.innerHTML = results.map(({year, data}) => {
+      const title = data?.title || `NATTORDREN ${year}`;
+      const subtitle = data?.subtitle || "";
+      const summary = data?.summary || (year === 2018 ? "Her begynner historien om NATTORDREN." : "Se bilder, historier og minner fra dette året.");
+      const status = data ? "" : '<span class="archive-link">Innhold kommer</span>';
+      return `<a class="card archive-card" href="/arkiv/${year}/">
+        <div class="eyebrow">${year}</div>
+        <h3>${esc(title)}</h3>
+        ${subtitle ? `<p class="muted">${esc(subtitle)}</p>` : ""}
+        <p>${esc(summary)}</p>
+        <span class="archive-link">Se året ${year} →</span>${status}
+      </a>`;
+    }).join("");
+    if (results.every(item => !item.data)) error.hidden = false;
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, {once:true});
+  else init();
+})();
+</script>
+</body>
+</html>
