@@ -77,7 +77,45 @@
     return path.startsWith("/") ? path : "/" + path.replace(/^\.?\//, "");
   }
 
-  async function init() {
+  async function initArchiveList() {
+    const list = document.querySelector("[data-archive-list]");
+    if (!list) return;
+
+    const years = Array.from({ length: 10 }, (_, i) => 2027 - i);
+    try {
+      const entries = await Promise.all(years.map(async year => {
+        const response = await fetch(`/content/years/${year}.md`, { cache: "no-store" });
+        if (!response.ok) return null;
+        const parsed = parseFrontmatter(await response.text());
+        const data = parsed.data;
+        return {
+          year: Number(data.year) || year,
+          title: clean(data.title) || `NATTORDREN ${year}`,
+          subtitle: clean(data.subtitle),
+          summary: clean(data.summary)
+        };
+      }));
+
+      const available = entries.filter(Boolean).sort((a, b) => b.year - a.year);
+      if (!available.length) throw new Error("Fant ingen år i årsarkivet.");
+
+      list.innerHTML = available.map(entry => `
+        <a class="card archive-card" href="/arkiv/${entry.year}/">
+          <div class="number">NATTORDREN · ${entry.year}</div>
+          <h3>${escapeHTML(entry.year)}</h3>
+          <strong>${escapeHTML(entry.title)}</strong>
+          ${entry.subtitle ? `<p>${escapeHTML(entry.subtitle)}</p>` : ""}
+          ${entry.summary ? `<p>${escapeHTML(entry.summary)}</p>` : ""}
+          <span class="archive-link">Åpne året →</span>
+        </a>
+      `).join("");
+    } catch (error) {
+      console.error("[NATTORDREN arkivliste]", error);
+      list.innerHTML = '<p class="notice">Årsarkivet kunne ikke lastes akkurat nå. Prøv å oppdatere siden.</p>';
+    }
+  }
+
+  async function initYearPage() {
     const root = document.querySelector("[data-archive-year]");
     if (!root) return;
     const year = root.getAttribute("data-archive-year");
@@ -127,6 +165,10 @@
       }
     }
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
-  else init();
+  function start() {
+    initArchiveList();
+    initYearPage();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
+  else start();
 })();
